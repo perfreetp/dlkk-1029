@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { Heart, Scale, Info, Star } from 'lucide-react'
+import { Heart, Scale, Info, Star, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
-import type { PetName, StylePref } from '@/types'
+import type { PetName } from '@/types'
 
 interface NameCardProps {
   nameData: PetName
   index: number
+  batchMode?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
 const STYLE_EMOJI_MAP: Record<string, string> = {
@@ -87,7 +90,13 @@ function renderStars(score: number): JSX.Element[] {
   return stars
 }
 
-export default function NameCard({ nameData, index }: NameCardProps) {
+export default function NameCard({
+  nameData,
+  index,
+  batchMode = false,
+  selected = false,
+  onToggleSelect,
+}: NameCardProps) {
   const {
     id,
     name,
@@ -129,17 +138,47 @@ export default function NameCard({ nameData, index }: NameCardProps) {
     openDetail(id)
   }
 
+  const handleCardClick = () => {
+    if (batchMode && onToggleSelect) {
+      onToggleSelect(id)
+    } else {
+      openDetail(id)
+    }
+  }
+
+  const handleSelectClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onToggleSelect) onToggleSelect(id)
+  }
+
   const animationDelay = `${index * 50}ms`
 
   return (
     <div
+      onClick={handleCardClick}
       className={cn(
         'card-hover relative w-full rounded-2xl p-5',
         'animate-fade-in-up opacity-0',
-        'overflow-hidden'
+        'overflow-hidden cursor-pointer',
+        batchMode && selected && 'ring-2 ring-orange-400 bg-orange-50/60',
+        batchMode && 'hover:ring-orange-300'
       )}
       style={{ animationDelay }}
     >
+      {batchMode && (
+        <button
+          onClick={handleSelectClick}
+          className={cn(
+            'absolute left-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-lg border-2 transition-all duration-200',
+            selected
+              ? 'bg-orange-500 text-white border-orange-500 scale-105 shadow-lg shadow-orange-200'
+              : 'bg-white/80 text-transparent border-orange-200 hover:border-orange-400'
+          )}
+        >
+          {selected && <Check className="h-4 w-4" />}
+        </button>
+      )}
+
       <div className="pointer-events-none absolute -right-2 -top-2 text-5xl opacity-15 select-none">
         {decorationEmoji}
       </div>
@@ -199,92 +238,126 @@ export default function NameCard({ nameData, index }: NameCardProps) {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-1">
+        {!batchMode && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleFavoriteClick}
+                className={cn(
+                  'relative flex h-9 w-9 items-center justify-center rounded-xl',
+                  'transition-all duration-200',
+                  isFavorited
+                    ? 'bg-pink-100 text-pink-500'
+                    : 'bg-cream-100 text-brown-400 hover:bg-pink-50 hover:text-pink-400',
+                  'active:scale-90'
+                )}
+                title={isFavorited ? '取消收藏' : '收藏'}
+              >
+                <Heart
+                  className={cn(
+                    'h-4.5 w-4.5 transition-transform',
+                    isFavorited && 'fill-current',
+                    isHeartAnimating && 'scale-125'
+                  )}
+                  style={{
+                    transition: isHeartAnimating ? 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)' : undefined,
+                  }}
+                />
+                {isHeartAnimating && (
+                  <span className="absolute inset-0 flex items-center justify-center animate-ping">
+                    <Heart className="h-4.5 w-4.5 text-pink-300 opacity-50" />
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={handleCompareClick}
+                className={cn(
+                  'flex h-9 w-9 items-center justify-center rounded-xl',
+                  'transition-all duration-200',
+                  isInCompare
+                    ? 'bg-mint-200 text-green-700 ring-2 ring-mint-300 ring-offset-1'
+                    : 'bg-cream-100 text-brown-400 hover:bg-mint-50 hover:text-green-600',
+                  'active:scale-90'
+                )}
+                title={isInCompare ? '移除对比' : '加入对比'}
+              >
+                <Scale className="h-4.5 w-4.5" />
+              </button>
+
+              <button
+                onClick={handleDetailClick}
+                className={cn(
+                  'flex h-9 w-9 items-center justify-center rounded-xl',
+                  'transition-all duration-200',
+                  'bg-cream-100 text-brown-400 hover:bg-orange-50 hover:text-orange-500',
+                  'active:scale-90'
+                )}
+                title="查看详情"
+              >
+                <Info className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleCompareClick}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg text-[11px] font-heading',
+                  'transition-all duration-200',
+                  isInCompare
+                    ? 'bg-mint-100 text-green-700'
+                    : 'bg-cream-100 text-brown-500 hover:bg-mint-50 hover:text-green-600',
+                  'active:scale-95'
+                )}
+              >
+                ⚖️ 对比
+              </button>
+              <button
+                onClick={handleDetailClick}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg text-[11px] font-heading',
+                  'bg-orange-100 text-orange-600 hover:bg-orange-200',
+                  'transition-all duration-200 active:scale-95'
+                )}
+              >
+                详情
+              </button>
+            </div>
+          </div>
+        )}
+
+        {batchMode && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className={cn(
+                'inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px]',
+                isFavorited ? 'bg-pink-100 text-pink-600' : 'bg-cream-100 text-brown-500'
+              )}>
+                <Heart className={cn('h-3 w-3', isFavorited && 'fill-current')} />
+                {isFavorited ? '已收藏' : '未收藏'}
+              </span>
+              {isInCompare && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] bg-mint-100 text-green-700">
+                  <Scale className="h-3 w-3" />
+                  对比中
+                </span>
+              )}
+            </div>
             <button
               onClick={handleFavoriteClick}
               className={cn(
-                'relative flex h-9 w-9 items-center justify-center rounded-xl',
-                'transition-all duration-200',
+                'px-2.5 py-1 rounded-lg text-[11px] font-heading',
+                'transition-all duration-200 active:scale-95',
                 isFavorited
-                  ? 'bg-pink-100 text-pink-500'
-                  : 'bg-cream-100 text-brown-400 hover:bg-pink-50 hover:text-pink-400',
-                'active:scale-90'
+                  ? 'bg-pink-100 text-pink-600'
+                  : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
               )}
-              title={isFavorited ? '取消收藏' : '收藏'}
             >
-              <Heart
-                className={cn(
-                  'h-4.5 w-4.5 transition-transform',
-                  isFavorited && 'fill-current',
-                  isHeartAnimating && 'scale-125'
-                )}
-                style={{
-                  transition: isHeartAnimating ? 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)' : undefined,
-                }}
-              />
-              {isHeartAnimating && (
-                <span className="absolute inset-0 flex items-center justify-center animate-ping">
-                  <Heart className="h-4.5 w-4.5 text-pink-300 opacity-50" />
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={handleCompareClick}
-              className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-xl',
-                'transition-all duration-200',
-                isInCompare
-                  ? 'bg-mint-200 text-green-700 ring-2 ring-mint-300 ring-offset-1'
-                  : 'bg-cream-100 text-brown-400 hover:bg-mint-50 hover:text-green-600',
-                'active:scale-90'
-              )}
-              title={isInCompare ? '移除对比' : '加入对比'}
-            >
-              <Scale className="h-4.5 w-4.5" />
-            </button>
-
-            <button
-              onClick={handleDetailClick}
-              className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-xl',
-                'transition-all duration-200',
-                'bg-cream-100 text-brown-400 hover:bg-orange-50 hover:text-orange-500',
-                'active:scale-90'
-              )}
-              title="查看详情"
-            >
-              <Info className="h-4.5 w-4.5" />
+              {isFavorited ? '取消收藏' : '单独收藏'}
             </button>
           </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleCompareClick}
-              className={cn(
-                'px-2.5 py-1.5 rounded-lg text-[11px] font-heading',
-                'transition-all duration-200',
-                isInCompare
-                  ? 'bg-mint-100 text-green-700'
-                  : 'bg-cream-100 text-brown-500 hover:bg-mint-50 hover:text-green-600',
-                'active:scale-95'
-              )}
-            >
-              ⚖️ 对比
-            </button>
-            <button
-              onClick={handleDetailClick}
-              className={cn(
-                'px-2.5 py-1.5 rounded-lg text-[11px] font-heading',
-                'bg-orange-100 text-orange-600 hover:bg-orange-200',
-                'transition-all duration-200 active:scale-95'
-              )}
-            >
-              详情
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="pointer-events-none absolute -bottom-4 -left-4 h-20 w-20 rounded-full bg-gradient-to-br from-orange-200/20 to-transparent blur-xl" />
